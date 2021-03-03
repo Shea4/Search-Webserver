@@ -61,12 +61,21 @@ public class GoogleController {
 						continue;
 					}
 
-					results.put(
-						new JSONObject().put("title", title.text())
-							.put("url", titleUrl)
-							.put("description", div.getElementsByTag("div").get(8).text())
-							.put("type", ResultType.RESULT.getId())
-					);
+					JSONObject data = new JSONObject().put("title", title.text())
+						.put("url", titleUrl)
+						.put("type", ResultType.RESULT.getId());
+
+					Element previous = div.previousElementSibling();
+					if (previous != null && previous.attr("data-md").equals("61")) {
+						Element heading = previous.getElementsByAttributeValue("aria-level", "3").first();
+
+						data.put("description", heading.getElementsByTag("span").first().text())
+							.put("answer", previous.previousElementSibling().getElementsByAttributeValue("data-tts", "answers").first().text());
+					} else {
+						data.put("description", div.getElementsByTag("div").get(8).text());
+					}
+
+					results.put(data);
 				} else if (div.attr("data-md").equals("2") && (types == null || types.contains(ResultType.WEATHER.getId()))) {
 					JSONObject json = new JSONObject();
 					json.put("type", ResultType.WEATHER.getId());
@@ -169,15 +178,9 @@ public class GoogleController {
 							.put("url", "https://www.lexico.com/definition/" + word)
 							.put("pronunciation", "https:" + element.getElementsByTag("source").attr("src"))
 					);
-				} else if (div.className().endsWith("g-blk") && (types == null || types.contains(ResultType.ANSWER.getId()))) {
-					Element element = div.getElementsByClass("xpdopen").first();
-					if (element == null) {
-						continue;
-					}
-
-					Element questionElement = element.getElementsByAttributeValue("data-md", "126").first();
-					Element descriptionElement = element.getElementsByAttributeValueEnding("class", "kp-header").first();
-					if (questionElement == null || descriptionElement == null) {
+				} else if (div.attr("data-md").equals("126") && (types == null || types.contains(ResultType.ANSWER.getId()))) {
+					Element descriptionElement = div.nextElementSibling();
+					if (descriptionElement == null) {
 						continue;
 					}
 
@@ -189,7 +192,7 @@ public class GoogleController {
 					results.put(
 						new JSONObject()
 							.put("type", ResultType.ANSWER.getId())
-							.put("title", questionElement.getElementsByAttributeValue("aria-level", "2").first().text())
+							.put("title", div.getElementsByAttributeValue("aria-level", "2").first().text())
 							.put("answer", answerElement.child(0).text())
 					);
 				} else if (div.className().equals("vk_c card obcontainer card-section") && (types == null || types.contains(ResultType.CONVERSION.getId()))) {
