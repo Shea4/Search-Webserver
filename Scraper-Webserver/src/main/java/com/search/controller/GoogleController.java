@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -46,9 +45,9 @@ public class GoogleController {
 		CompletableFuture<ResponseEntity<String>> future = new CompletableFuture<>();
 		WebServer.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document document = Jsoup.parse(response.body().string());
-			Element search = document.getElementById("rso");
-
 			JSONArray results = new JSONArray();
+
+			Element search = document.getElementById("rso");
 
 			Elements divs = search == null ? new Elements() : search.getElementsByTag("div");
 			for (Element div : divs) {
@@ -68,9 +67,10 @@ public class GoogleController {
 					Element previous = div.previousElementSibling();
 					if (previous != null && previous.attr("data-md").equals("61")) {
 						Element heading = previous.getElementsByAttributeValue("aria-level", "3").first();
+						Element answer = previous.previousElementSibling();
 
 						data.put("description", heading.getElementsByTag("span").first().text())
-							.put("answer", previous.previousElementSibling().getElementsByAttributeValue("data-tts", "answers").first().text());
+							.put("answer", answer == null ? null : answer.getElementsByAttributeValue("data-tts", "answers").first().text());
 					} else {
 						data.put("description", div.getElementsByTag("div").get(8).text());
 					}
@@ -168,7 +168,7 @@ public class GoogleController {
 						definitions.put(definition);
 					}
 
-					String word =  element.getElementsByAttributeValue("data-dobid", "hdw").text();
+					String word = element.getElementsByAttributeValue("data-dobid", "hdw").text();
 
 					results.put(
 						new JSONObject()
@@ -329,7 +329,7 @@ public class GoogleController {
 				}
 			}
 
-			future.complete(JsonResponseEntity.ok(new JSONObject().put("results", results).put("url", url).put("status", 200)));
+			future.complete(JsonResponseEntity.ok(new JSONObject().put("results", results).put("url", url)));
 		});
 
 		return future;
