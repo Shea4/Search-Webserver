@@ -22,6 +22,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,6 +43,8 @@ public class GoogleController {
 			.addHeader("User-Agent", this.config.getProperty("google.user-agent"))
 			.build();
 
+		AtomicLong elapsed = new AtomicLong(System.currentTimeMillis());
+
 		CompletableFuture<ResponseEntity<String>> future = new CompletableFuture<>();
 		WebServer.getClient().newCall(request).enqueue((HttpCallback) response -> {
 			Document document = Jsoup.parse(response.body().string());
@@ -51,7 +54,7 @@ public class GoogleController {
 
 			Elements divs = search == null ? new Elements() : search.getElementsByTag("div");
 			for (Element div : divs) {
-				if (div.attr("class").equals("g") && (types == null || types.contains(ResultType.RESULT.getId()))) {
+				if (div.className().equals("g") && (types == null || types.contains(ResultType.RESULT.getId()))) {
 					Element titleElement = div.getElementsByTag("a").first();
 
 					String titleUrl = titleElement.attr("href");
@@ -326,10 +329,87 @@ public class GoogleController {
 							.put("min", Integer.parseInt(randomElement.getElementById("UMy8j").attr("value")))
 							.put("max", Integer.parseInt(randomElement.getElementById("nU5Yvb").attr("value")))
 					);
+				} else if (div.id().equals("lud-dsu") && (types == null || types.contains(ResultType.DIRECTIONS.getId()))) {
+					Element selector = div.getElementsByClass("gws-plugins-local-jslayout-mode_selector__selector").first();
+					Element selected = selector.getElementsByAttributeValue("aria-selected", "true").first();
+					Elements inputs = div.getElementsByTag("input");
+					Element map = div.getElementsByClass("rrm").first();
+
+					Element routesElement = div.getElementsByAttributeValue("data-async-type", "routeSearch").first();
+
+					JSONArray routes = new JSONArray();
+					for (Element route : routesElement.getElementsByAttributeValueStarting("data-rre-id", "exp")) {
+						Elements span = route.getElementsByTag("span");
+
+						String[] durationSplit = span.get(1).text().split(" ");
+
+						long duration = 0;
+						for (int i = 0; i < durationSplit.length / 2; i++) {
+							duration += Integer.parseInt(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
+						}
+
+						String[] lengthSplit = span.get(2).text().split(" ");
+
+						routes.put(
+							new JSONObject()
+								.put("duration", duration)
+								.put("length", new JSONObject().put("value", Double.parseDouble(lengthSplit[0].replace(",", ""))).put("unit", lengthSplit[1]))
+								.put("via", span.get(3).text().substring("Via ".length()))
+						);
+					}
+
+					results.put(
+						new JSONObject()
+							.put("to", inputs.get(1).attr("placeholder"))
+							.put("from", inputs.get(0).attr("placeholder"))
+							.put("method", selected.getElementsByTag("img").first().attr("title"))
+							.put("url", "https://google.com" + map.getElementsByTag("a").first().attr("data-url"))
+							.put("routes", routes)
+							.put("type", ResultType.DIRECTIONS.getId())
+					);
+				} else if (div.attr("jsname").equals("MxBDOc") && (types == null || types.contains(ResultType.FLIGHTS.getId()))) {
+					Elements boxes = div.getElementsByAttribute("data-is-mobile");
+					Elements locations = boxes.get(0).getElementsByTag("input"), dates = boxes.get(1).getElementsByTag("input");
+
+					String returnDate = dates.get(1).attr("value");
+
+					JSONArray flights = new JSONArray();
+					for (Element flight : div.getElementsByTag("a")) {
+						Elements divElements = flight.getElementsByTag("div");
+
+						String[] durationSplit = divElements.get(1).text().split(" ");
+
+						long duration = 0;
+						for (String part : durationSplit) {
+							part = part.contains("+") ? part.substring(0, part.length() - 1) : part;
+
+							char unit = part.charAt(part.length() - 1);
+							duration += Integer.parseInt(part.substring(0, part.length() - 1)) * (unit == 'h' ? 3600 : 60);
+						}
+
+						flights.put(
+							new JSONObject()
+								.put("url", flight.attr("href"))
+								.put("airline", divElements.get(0).text())
+								.put("price", Integer.parseInt(divElements.get(3).getElementsByTag("span").first().text().substring(1)))
+								.put("type", divElements.get(2).text())
+								.put("duration", duration)
+						);
+					}
+
+					results.put(
+						new JSONObject()
+							.put("departing", locations.get(0).attr("value"))
+							.put("destination", locations.get(1).attr("value"))
+							.put("return", returnDate.isEmpty() ? JSONObject.NULL : returnDate)
+							.put("departure", dates.get(0).attr("value"))
+							.put("flights", flights)
+							.put("type", ResultType.FLIGHTS.getId())
+					);
 				}
 			}
 
-			future.complete(JsonResponseEntity.ok(new JSONObject().put("results", results).put("url", url)));
+			future.complete(JsonResponseEntity.ok(new JSONObject().put("results", results).put("url", url).put("elapsed", System.currentTimeMillis() - elapsed.get())));
 		});
 
 		return future;

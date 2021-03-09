@@ -10,7 +10,9 @@ public enum ResultType {
 	DATE_TIME(5),
 	CALCULATOR(6),
 	TRANSLATE(7),
-	RANDOM_NUMBER(8);
+	RANDOM_NUMBER(8),
+	DIRECTIONS(9),
+	FLIGHTS(10);
 
 	private final int id;
 
