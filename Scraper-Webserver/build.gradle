@@ -2,6 +2,7 @@ plugins {
     id 'org.springframework.boot' version '2.4.2'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
     id 'java'
+    id 'application'
     id 'com.github.johnrengelman.shadow' version '6.0.0'
 }
 
@@ -11,6 +12,8 @@ shadowJar {
     archiveVersion = ''
 }
 
+mainClassName = 'com.search.WebServer'
+
 group = 'com.search'
 
 repositories {
@@ -18,10 +21,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 
     implementation 'org.json:json:+'
     implementation 'com.squareup.okhttp3:okhttp:+'

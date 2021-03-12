@@ -56,6 +56,9 @@ public class GoogleController {
 			for (Element div : divs) {
 				if (div.className().equals("g") && (types == null || types.contains(ResultType.RESULT.getId()))) {
 					Element titleElement = div.getElementsByTag("a").first();
+					if (titleElement == null) {
+						continue;
+					}
 
 					String titleUrl = titleElement.attr("href");
 					Element title = titleElement.getElementsByTag("h3").first();
@@ -75,7 +78,10 @@ public class GoogleController {
 						data.put("description", heading.getElementsByTag("span").first().text())
 							.put("answer", answer == null ? null : answer.getElementsByAttributeValue("data-tts", "answers").first().text());
 					} else {
-						data.put("description", div.getElementsByTag("div").get(8).text());
+						Element descriptionElement = div.getElementsByClass("IsZvec").first();
+						Element span = descriptionElement.getElementsByClass("aCOpRe").first();
+
+						data.put("description", span == null ? descriptionElement.text() : span.text());
 					}
 
 					results.put(data);
@@ -229,7 +235,7 @@ public class GoogleController {
 				} else if (div.id().equals("knowledge-currency__updatable-data-column") && (types == null || types.contains(ResultType.CONVERSION.getId()))) {
 					Elements elements = div.getElementsByTag("tr").stream().filter(e -> e.className().isEmpty()).collect(Collectors.toCollection(Elements::new));
 
-					Element inputElement = elements.get(0);
+					Element inputElement = elements.first();
 
 					String inputUnit = inputElement.getElementsByTag("option").stream().filter(e -> e.attr("selected").equals("1")).map(Element::text).findFirst().orElse(null);
 					double inputValue = Double.parseDouble(inputElement.getElementsByTag("input").first().attr("value"));
@@ -335,40 +341,84 @@ public class GoogleController {
 					Elements inputs = div.getElementsByTag("input");
 					Element map = div.getElementsByClass("rrm").first();
 
+					String method = selected.getElementsByTag("img").first().attr("title");
+
 					Element routesElement = div.getElementsByAttributeValue("data-async-type", "routeSearch").first();
 
 					JSONArray routes = new JSONArray();
 					for (Element route : routesElement.getElementsByAttributeValueStarting("data-rre-id", "exp")) {
-						Elements span = route.getElementsByTag("span");
-
-						String[] durationSplit = span.get(1).text().split(" ");
-
-						long duration = 0;
-						for (int i = 0; i < durationSplit.length / 2; i++) {
-							duration += Integer.parseInt(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
+						if (!route.tagName().equals("div")) {
+							continue;
 						}
 
-						String[] lengthSplit = span.get(2).text().split(" ");
+						if (method.equals("Public transport")) {
+							Elements divElements = route.getElementsByTag("div");
 
-						routes.put(
-							new JSONObject()
-								.put("duration", duration)
-								.put("length", new JSONObject().put("value", Double.parseDouble(lengthSplit[0].replace(",", ""))).put("unit", lengthSplit[1]))
-								.put("via", span.get(3).text().substring("Via ".length()))
-						);
+							String[] durationSplit = divElements.get(2).text().split(" ");
+
+							long duration = 0;
+							for (int i = 0; i < durationSplit.length / 2; i++) {
+								duration += Integer.parseInt(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
+							}
+
+							String[] timeSplit = divElements.get(3).text().split(" - ");
+							String[] stationSplit = divElements.get(5).text().split(" from ");
+
+							routes.put(
+								new JSONObject()
+									.put("duration", duration)
+									.put("depart", new JSONObject().put("location", timeSplit[0]).put("station", stationSplit[0]))
+									.put("station", stationSplit[1])
+									.put("arrive", timeSplit[1])
+							);
+						} else {
+							Elements spanElements = route.getElementsByTag("span");
+
+							String[] durationSplit = spanElements.get(1).text().split(" ");
+
+							long duration = 0;
+							for (int i = 0; i < durationSplit.length / 2; i++) {
+								duration += Integer.parseInt(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
+							}
+
+							JSONArray steps = new JSONArray();
+							for (Element step : div.getElementsByClass("numbered-step-start").first().children()) {
+								String[] distanceSplit = step.getElementsByClass("uW1II").first().text().split(" ");
+
+								steps.put(
+									new JSONObject()
+										.put("instruction", step.getElementsByClass("numbered-step").first().textNodes().get(0).text())
+										.put("in", new JSONObject().put("value", Double.parseDouble(distanceSplit[0])).put("unit", distanceSplit[1]))
+								);
+							}
+
+							String[] distanceSplit = spanElements.get(2).text().split(" ");
+
+							routes.put(
+								new JSONObject()
+									.put("duration", duration)
+									.put("distance", new JSONObject().put("value", Double.parseDouble(distanceSplit[0].replace(",", ""))).put("unit", distanceSplit[1]))
+									.put("via", spanElements.get(3).text().substring("Via ".length()))
+									.put("steps", steps)
+							);
+						}
 					}
 
 					results.put(
 						new JSONObject()
 							.put("to", inputs.get(1).attr("placeholder"))
 							.put("from", inputs.get(0).attr("placeholder"))
-							.put("method", selected.getElementsByTag("img").first().attr("title"))
+							.put("method", method)
 							.put("url", "https://google.com" + map.getElementsByTag("a").first().attr("data-url"))
 							.put("routes", routes)
 							.put("type", ResultType.DIRECTIONS.getId())
 					);
 				} else if (div.attr("jsname").equals("MxBDOc") && (types == null || types.contains(ResultType.FLIGHTS.getId()))) {
 					Elements boxes = div.getElementsByAttribute("data-is-mobile");
+					if (boxes.isEmpty()) {
+						continue;
+					}
+
 					Elements locations = boxes.get(0).getElementsByTag("input"), dates = boxes.get(1).getElementsByTag("input");
 
 					String returnDate = dates.get(1).attr("value");
@@ -387,11 +437,22 @@ public class GoogleController {
 							duration += Integer.parseInt(part.substring(0, part.length() - 1)) * (unit == 'h' ? 3600 : 60);
 						}
 
+						String price = divElements.get(3).getElementsByTag("span").first().text();
+
+						int currencyLength = 0;
+						for (char character : price.toCharArray()) {
+							if (!Character.isDigit(character)) {
+								currencyLength++;
+							} else {
+								break;
+							}
+						}
+
 						flights.put(
 							new JSONObject()
 								.put("url", flight.attr("href"))
 								.put("airline", divElements.get(0).text())
-								.put("price", Integer.parseInt(divElements.get(3).getElementsByTag("span").first().text().substring(1)))
+								.put("price", new JSONObject().put("value", Integer.parseInt(price.substring(currencyLength))).put("formatted", price))
 								.put("type", divElements.get(2).text())
 								.put("duration", duration)
 						);

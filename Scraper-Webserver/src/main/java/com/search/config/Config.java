@@ -20,7 +20,7 @@ public class Config {
 
 	private Config() {
 		this.properties = new Properties();
-		this.load(WebServer.CONFIG);
+		this.load("application.properties");
 	}
 
 	public void load(String path) {

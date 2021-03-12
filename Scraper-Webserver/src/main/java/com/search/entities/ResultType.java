@@ -3,7 +3,7 @@ package com.search.entities;
 public enum ResultType {
 
 	RESULT(0),
-	WEATHER(1),
+	WEATHER(1), // async loaded, daily data is guaranteed however the data at the current time will sometimes be missing
 	DEFINITION(2),
 	ANSWER(3),
 	CONVERSION(4),

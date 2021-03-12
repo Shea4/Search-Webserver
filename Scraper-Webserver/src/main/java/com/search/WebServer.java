@@ -9,12 +9,10 @@ import org.springframework.web.servlet.DispatcherServlet;
 @SpringBootApplication
 public class WebServer {
 
-	public static final String CONFIG = "src/main/resources/application.properties";
-
 	private final static OkHttpClient CLIENT = new OkHttpClient();
 
 	public static void main(String[] args) {
-		ConfigurableApplicationContext context = SpringApplication.run(WebServer.class, "--spring.config.location=" + WebServer.CONFIG);
+		SpringApplication.run(WebServer.class, args);
 	}
 
 	public static OkHttpClient getClient() {

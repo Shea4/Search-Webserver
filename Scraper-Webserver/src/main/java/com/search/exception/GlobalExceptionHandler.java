@@ -7,12 +7,13 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(NoHandlerFoundException.class)
-	public ResponseEntity<String> handleNotFound(NoHandlerFoundException exception) {
+	public ResponseEntity<String> handleNotFound(HttpServletResponse response, NoHandlerFoundException exception) {
 		return new JsonResponseEntity("You've reached a dead end", 404);
 	}
 
