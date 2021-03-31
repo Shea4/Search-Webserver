@@ -358,7 +358,7 @@ public class GoogleController {
 
 							long duration = 0;
 							for (int i = 0; i < durationSplit.length / 2; i++) {
-								duration += Integer.parseInt(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
+								duration += Long.parseLong(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
 							}
 
 							String[] timeSplit = divElements.get(3).text().split(" - ");
@@ -378,7 +378,7 @@ public class GoogleController {
 
 							long duration = 0;
 							for (int i = 0; i < durationSplit.length / 2; i++) {
-								duration += Integer.parseInt(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
+								duration += Long.parseLong(durationSplit[i * 2]) * (durationSplit[i * 2 + 1].equals("min") ? 60 : 3600);
 							}
 
 							JSONArray steps = new JSONArray();
@@ -434,7 +434,7 @@ public class GoogleController {
 							part = part.contains("+") ? part.substring(0, part.length() - 1) : part;
 
 							char unit = part.charAt(part.length() - 1);
-							duration += Integer.parseInt(part.substring(0, part.length() - 1)) * (unit == 'h' ? 3600 : 60);
+							duration += Long.parseLong(part.substring(0, part.length() - 1)) * (unit == 'h' ? 3600 : 60);
 						}
 
 						String price = divElements.get(3).getElementsByTag("span").first().text();
